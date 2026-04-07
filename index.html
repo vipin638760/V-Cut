@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V-CUT Group — Live Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#111;min-height:100vh;font-size:13px}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#1a2b4c;color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0}
+.topbar h1{font-size:15px;font-weight:500;letter-spacing:.3px}
+.tb-badge{background:#c9a83c;color:#1a2b4c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px}
+.tb-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#4caf50;animation:pulse 2s infinite;flex-shrink:0}
+.sync-dot.offline{background:#e24b4a;animation:none}
+.sync-dot.syncing{background:#c9a83c}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:10px;opacity:.7}
+.admin-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;cursor:pointer;user-select:none;border:none}
+.admin-pill.off{background:#374a6e;color:#a0b0cc}
+.admin-pill.on{background:#c9a83c;color:#1a2b4c}
+
+.nav{background:#fff;border-bottom:.5px solid #e0e0e0;display:flex;overflow-x:auto;flex-shrink:0;padding:0 8px}
+.nav::-webkit-scrollbar{height:2px}.nav::-webkit-scrollbar-thumb{background:#c9a83c}
+.nb{padding:11px 14px;font-size:12px;color:#666;cursor:pointer;white-space:nowrap;border:none;background:none;border-bottom:2px solid transparent;transition:all .15s}
+.nb.active{color:#1a2b4c;border-bottom-color:#c9a83c;font-weight:500}
+.nb:hover:not(.active){color:#111}
+
+.content{flex:1;padding:16px;max-width:1400px;width:100%;margin:0 auto}
+.page{display:none}.page.active{display:block}
+
+/* Setup screen */
+.setup-wrap{max-width:560px;margin:40px auto}
+.setup-card{background:#fff;border:.5px solid #e0e0e0;border-radius:14px;padding:28px}
+.setup-card h2{font-size:17px;font-weight:500;margin-bottom:6px;color:#1a2b4c}
+.setup-card p{font-size:12px;color:#666;margin-bottom:20px;line-height:1.6}
+.setup-step{background:#f0f4fa;border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;line-height:1.7;border-left:3px solid #1a2b4c}
+.setup-step strong{color:#1a2b4c}
+.setup-step code{background:#dde6f5;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px}
+.cfg-input{width:100%;padding:9px 12px;border:.5px solid #e0e0e0;border-radius:8px;font-size:12px;font-family:monospace;margin-top:6px;color:#111;background:#fff}
+.cfg-input:focus{outline:none;border-color:#1a2b4c}
+.setup-err{font-size:11px;color:#a32d2d;margin-top:6px;display:none}
+.setup-err.show{display:block}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px;margin-bottom:16px}
+.kpi{background:#fff;border:.5px solid #e0e0e0;border-radius:10px;padding:12px 14px}
+.kpi-l{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.kpi-v{font-size:20px;font-weight:500;line-height:1}
+.kpi-s{font-size:10px;color:#666;margin-top:3px}
+.red{color:#a32d2d}.green{color:#3b6d11}.orange{color:#854f0b}.blue{color:#185fa5}
+
+.st{font-size:13px;font-weight:500;margin-bottom:10px;color:#111}
+.card{background:#fff;border:.5px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f0f4fa;color:#1a2b4c;font-weight:500;font-size:11px;padding:7px 11px;text-align:left;border-bottom:1px solid #e0e8f5;white-space:nowrap}
+td{padding:7px 11px;border-bottom:.5px solid #e0e0e0;color:#111}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.tf td{background:#f0f4fa;font-weight:500}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500}
+.pr{background:#fcebeb;color:#a32d2d}.pg{background:#eaf3de;color:#3b6d11}
+.pa{background:#faeeda;color:#854f0b}.pb{background:#e6f1fb;color:#185fa5}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.two-col{grid-template-columns:1fr}}
+.section-divider{height:.5px;background:#e0e0e0;margin:14px 0}
+
+.branch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:16px}
+.bcard{background:#fff;border:.5px solid #e0e0e0;border-radius:10px;overflow:hidden;cursor:pointer;transition:box-shadow .15s}
+.bcard:hover{box-shadow:0 2px 10px rgba(26,43,76,.1)}
+.bcard-head{background:#1a2b4c;color:#fff;padding:9px 13px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:500}
+.bcard-body{padding:10px 13px}
+.br{display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid #e0e0e0;font-size:11px}
+.br:last-child{border-bottom:none}
+.br .bl{color:#666}
+
+.detail-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.back-btn{background:none;border:.5px solid #e0e0e0;border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer;color:#666}
+.back-btn:hover{background:#f5f5f5}
+
+.form-panel{background:#fff;border:.5px solid #e0e0e0;border-radius:8px;padding:14px;margin-bottom:12px}
+.form-title{font-size:12px;font-weight:500;margin-bottom:10px;padding-bottom:7px;border-bottom:.5px solid #e0e0e0}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;margin-bottom:10px}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:10px;color:#666;font-weight:500}
+.fg input,.fg select{padding:7px 9px;border:.5px solid #e0e0e0;border-radius:6px;font-size:12px;background:#fff;color:#111;width:100%}
+.fg input:focus,.fg select:focus{outline:none;border-color:#1a2b4c}
+.btn{padding:6px 13px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;border:none}
+.btn-p{background:#1a2b4c;color:#fff}.btn-p:hover{background:#243d6a}
+.btn-s{background:none;border:.5px solid #e0e0e0;color:#666}.btn-s:hover{background:#f5f5f5}
+.btn-d{background:#fcebeb;color:#a32d2d;border:.5px solid #f7c1c1}
+.btn-sm{padding:3px 8px;font-size:11px}
+.btn-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
+.tab2{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.t2b{padding:5px 12px;font-size:11px;border:.5px solid #e0e0e0;border-radius:6px;cursor:pointer;background:none;color:#666}
+.t2b.active{background:#1a2b4c;color:#fff;border-color:#1a2b4c}
+
+.toast{position:fixed;bottom:20px;right:20px;background:#1a2b4c;color:#fff;padding:9px 14px;border-radius:8px;font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:280px}
+.toast.show{opacity:1}
+
+/* Admin overlay */
+.overlay{position:fixed;inset:0;background:rgba(10,20,40,.7);z-index:1000;display:flex;align-items:center;justify-content:center}
+.overlay.hidden{display:none}
+.overlay-box{background:#fff;border-radius:14px;padding:28px;width:300px}
+.overlay-box h3{font-size:15px;font-weight:500;margin-bottom:4px;color:#1a2b4c}
+.overlay-box p{font-size:11px;color:#666;margin-bottom:16px}
+.overlay-box input{width:100%;padding:9px 11px;border:.5px solid #e0e0e0;border-radius:7px;font-size:13px;margin-bottom:10px;letter-spacing:2px}
+.overlay-box input:focus{outline:none;border-color:#1a2b4c}
+.overlay-err{font-size:11px;color:#a32d2d;margin-bottom:8px;display:none}
+.overlay-err.show{display:block}
+
+/* Loading spinner */
+.loading{display:flex;align-items:center;gap:10px;padding:30px;color:#666;font-size:13px;justify-content:center}
+.spinner{width:20px;height:20px;border:2px solid #e0e0e0;border-top-color:#1a2b4c;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden-val{filter:blur(4px);user-select:none;pointer-events:none;display:inline-block}
+</style>
+</head>
+<body>
+
+<!-- Admin login overlay -->
+<div class="overlay hidden" id="adminOverlay">
+  <div class="overlay-box">
+    <h3>Admin Login</h3>
+    <p>Enter admin password to view salary, rent and financial details.</p>
+    <input type="password" id="adminPw" placeholder="Password..." onkeydown="if(event.key==='Enter')checkAdmin()">
+    <div class="overlay-err" id="adminErr">Wrong password. Try again.</div>
+    <div class="btn-row">
+      <button class="btn btn-p" style="flex:1" onclick="checkAdmin()">Login</button>
+      <button class="btn btn-s" onclick="closeAdmin()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase Setup Screen -->
+<div id="setup-screen" style="display:none">
+  <div style="background:#1a2b4c;color:#fff;padding:0 20px;height:52px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:15px;font-weight:500">V-CUT GROUP</span>
+    <span style="background:#c9a83c;color:#1a2b4c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px">SETUP</span>
+  </div>
+  <div class="setup-wrap">
+    <div class="setup-card">
+      <h2>Connect to Firebase</h2>
+      <p>Follow these steps once to connect your dashboard to Firebase. After setup, all data syncs across all devices and branches in real-time.</p>
+
+      <div class="setup-step">
+        <strong>Step 1 — Create Firebase project</strong><br>
+        Go to <strong>console.firebase.google.com</strong> → Click <strong>"Add project"</strong> → Name it <code>vcut-dashboard</code> → Disable Google Analytics → Click <strong>"Create project"</strong>
+      </div>
+
+      <div class="setup-step">
+        <strong>Step 2 — Enable Firestore Database</strong><br>
+        In your project → Left sidebar → <strong>"Firestore Database"</strong> → <strong>"Create database"</strong> → Choose <strong>"Start in test mode"</strong> → Pick region <code>asia-south1</code> (Mumbai) → Done
+      </div>
+
+      <div class="setup-step">
+        <strong>Step 3 — Get your config</strong><br>
+        Left sidebar → <strong>Project Settings</strong> (gear icon) → Scroll to <strong>"Your apps"</strong> → Click <strong>"Web" (&lt;/&gt;)</strong> → Register app as <code>vcut-web</code> → Copy the <code>firebaseConfig</code> object shown
+      </div>
+
+      <div class="setup-step">
+        <strong>Step 4 — Paste config below</strong><br>
+        Paste the entire config object from Firebase here:
+        <textarea class="cfg-input" id="fbConfigInput" rows="8" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "vcut-dashboard.firebaseapp.com",
+  "projectId": "vcut-dashboard",
+  "storageBucket": "vcut-dashboard.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abc123"
+}'></textarea>
+        <div class="setup-err" id="cfgErr">Invalid config — make sure you paste the full JSON object from Firebase.</div>
+      </div>
+
+      <div class="setup-step" style="border-left-color:#c9a83c">
+        <strong>Admin Password</strong><br>
+        Set your admin password (for salary/rent access):
+        <input type="password" class="cfg-input" id="adminPassInput" placeholder="Enter admin password e.g. VCut@2026" style="letter-spacing:1px">
+      </div>
+
+      <button class="btn btn-p" style="width:100%;margin-top:14px;padding:10px" onclick="saveConfig()">Connect & Launch Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="main-app" style="display:none">
+<div class="app">
+<div class="topbar">
+  <h1>V-CUT GROUP</h1>
+  <span class="tb-badge">FIREBASE</span>
+  <span style="font-size:10px;opacity:.6" id="syncTime"></span>
+  <div class="tb-right">
+    <span class="sync-dot" id="syncDot"></span>
+    <span class="sync-label" id="syncLabel">Connecting...</span>
+    <button class="admin-pill off" id="adminPill" onclick="handleAdminClick()">ADMIN</button>
+  </div>
+</div>
+<div class="nav">
+  <button class="nb active" onclick="showPage('dashboard',this)">Dashboard</button>
+  <button class="nb" onclick="showPage('branches',this)">Branches</button>
+  <button class="nb" onclick="showPage('entry',this)">Data Entry</button>
+  <button class="nb" onclick="showPage('staff',this)">Staff</button>
+  <button class="nb" onclick="showPage('expenses',this)">Expenses</button>
+  <button class="nb" onclick="showPage('pl',this)">P&L Report</button>
+  <button class="nb" onclick="showPage('settings',this)">Settings</button>
+</div>
+<div class="content">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="kpi-grid" id="dash-kpis"></div>
+  <div class="two-col">
+    <div><div class="st">Branch performance</div><div class="card"><table id="dash-table"></table></div></div>
+    <div><div class="st">Expense breakdown</div><div class="card"><table id="dash-exp"></table></div></div>
+  </div>
+</div>
+
+<!-- BRANCHES -->
+<div class="page" id="page-branches">
+  <div id="branch-list-view">
+    <div class="tab2">
+      <button class="t2b active" onclick="filterB('all',this)">All</button>
+      <button class="t2b" onclick="filterB('mens',this)">Men's</button>
+      <button class="t2b" onclick="filterB('unisex',this)">Unisex</button>
+    </div>
+    <div class="branch-grid" id="branch-grid"></div>
+  </div>
+  <div id="branch-detail-view" style="display:none"></div>
+</div>
+
+<!-- DATA ENTRY -->
+<div class="page" id="page-entry">
+  <div class="form-panel">
+    <div class="form-title">Daily Sales Entry</div>
+    <div class="form-grid">
+      <div class="fg"><label>Branch</label><select id="e-branch" onchange="loadEntryForm()"><option value="">Select...</option></select></div>
+      <div class="fg"><label>Date</label><input type="date" id="e-date"></div>
+    </div>
+    <div id="entry-body" style="display:none">
+      <div class="form-grid" id="e-income"></div>
+      <div class="section-divider"></div>
+      <div class="st" style="margin-bottom:8px;font-size:12px">Staff Billing</div>
+      <div id="e-staff"></div>
+      <div class="section-divider"></div>
+      <div class="form-grid" id="e-expenses"></div>
+      <div class="btn-row">
+        <button class="btn btn-p" onclick="saveEntry()">Save to Firebase</button>
+        <button class="btn btn-s" onclick="clearEntry()">Clear</button>
+        <span id="entry-status" style="font-size:11px;color:#666"></span>
+      </div>
+    </div>
+  </div>
+  <div class="st">Recent entries</div>
+  <div class="card"><table><thead><tr><th>Date</th><th>Branch</th><th class="num">Online</th><th class="num">Cash</th><th class="num">Total</th><th></th></tr></thead><tbody id="recent-body"></tbody></table></div>
+</div>
+
+<!-- STAFF -->
+<div class="page" id="page-staff">
+  <div class="btn-row" style="margin-bottom:12px">
+    <button class="btn btn-p" onclick="toggleAddStaff()">+ Add Staff</button>
+    <select id="staff-filter" onchange="renderStaff()" style="padding:6px 10px;border:.5px solid #e0e0e0;border-radius:6px;font-size:12px;background:#fff;color:#111">
+      <option value="">All Branches</option>
+    </select>
+  </div>
+  <div id="add-staff-panel" style="display:none" class="form-panel">
+    <div class="form-title">Add / Edit Staff</div>
+    <div class="form-grid">
+      <div class="fg"><label>Name</label><input id="sf-name" placeholder="Staff name"></div>
+      <div class="fg"><label>Branch</label><select id="sf-branch"></select></div>
+      <div class="fg"><label>Role</label><select id="sf-role"><option>Stylist</option><option>Senior Stylist</option><option>Manager</option><option>Assistant</option></select></div>
+      <div class="fg"><label>Mobile</label><input id="sf-mobile" placeholder="9999999999"></div>
+      <div class="fg"><label>Salary (₹)</label><input id="sf-salary" type="number" placeholder="30000"></div>
+      <div class="fg"><label>Join Date</label><input id="sf-join" type="date"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-p" onclick="saveStaff()">Save Staff</button>
+      <button class="btn btn-s" onclick="document.getElementById('add-staff-panel').style.display='none'">Cancel</button>
+      <input type="hidden" id="sf-edit-id">
+    </div>
+  </div>
+  <div class="card"><table id="staff-table"></table></div>
+</div>
+
+<!-- EXPENSES -->
+<div class="page" id="page-expenses">
+  <div class="tab2">
+    <button class="t2b active" onclick="showExpTab('rent',this)">Rent</button>
+    <button class="t2b" onclick="showExpTab('elec',this)">Electricity</button>
+    <button class="t2b" onclick="showExpTab('wifi',this)">WiFi</button>
+    <button class="t2b" onclick="showExpTab('summary',this)">Summary</button>
+  </div>
+  <div id="exp-content"></div>
+</div>
+
+<!-- P&L -->
+<div class="page" id="page-pl">
+  <div class="kpi-grid" id="pl-kpis"></div>
+  <div class="st">P&L by Branch</div>
+  <div class="card" style="overflow-x:auto"><table id="pl-table"></table></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div id="settings-admin-gate" style="display:none">
+    <div class="form-panel">
+      <div class="form-title">Add / Edit Branch</div>
+      <div class="form-grid">
+        <div class="fg"><label>Branch Name</label><input id="set-name" placeholder="V-CUT NEW BRANCH"></div>
+        <div class="fg"><label>Type</label><select id="set-type"><option value="mens">Men's Salon</option><option value="unisex">Unisex</option></select></div>
+        <div class="fg"><label>Shop Rent (₹)</label><input id="set-srent" type="number"></div>
+        <div class="fg"><label>Room Rent (₹)</label><input id="set-rrent" type="number"></div>
+        <div class="fg"><label>Salary Budget (₹)</label><input id="set-sal" type="number"></div>
+        <div class="fg"><label>WiFi (₹)</label><input id="set-wifi" type="number"></div>
+        <div class="fg"><label>Shop Elec (₹)</label><input id="set-selec" type="number"></div>
+        <div class="fg"><label>Room Elec (₹)</label><input id="set-relec" type="number"></div>
+        <div class="fg"><label>Location</label><input id="set-loc" placeholder="Bangalore"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-p" onclick="saveBranch()">Save Branch</button>
+        <button class="btn btn-s" onclick="clearBranchForm()">Clear</button>
+        <input type="hidden" id="set-edit-id">
+      </div>
+    </div>
+  </div>
+  <div id="settings-notice" class="form-panel" style="display:none">
+    <p style="font-size:12px;color:#666">Login as Admin to add or edit branches.</p>
+  </div>
+  <div class="st">All Branches</div>
+  <div class="card"><table id="settings-table"></table></div>
+  <div class="section-divider"></div>
+  <div class="btn-row">
+    <button class="btn btn-s" onclick="changePassword()">Change Admin Password</button>
+    <button class="btn btn-s" onclick="reconfigFirebase()">Reset Firebase Config</button>
+    <span style="font-size:11px;color:#666">Connected to Firebase · v-cut-8e496</span>
+  </div>
+</div>
+
+</div><!-- content -->
+</div><!-- app -->
+</div><!-- main-app -->
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {
+  getFirestore, collection, doc, getDocs, getDoc,
+  setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp, query, orderBy
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const INR = v => '₹' + Math.abs(Math.round(v||0)).toLocaleString('en-IN');
+const MASK = '<span class="hidden-val">●●●●●</span>';
+const uid = () => 'id' + Date.now() + Math.random().toString(36).slice(2,6);
+
+let db, branches=[], staff=[], entries=[];
+let isAdmin = false;
+let ADMIN_PASS = '';
+let currentExpTab = 'rent';
+let unsubscribers = [];
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='info'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type==='error'?'#a32d2d':type==='success'?'#3b6d11':'#1a2b4c';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+window.toast = toast;
+
+// ── Sync status ───────────────────────────────────────────────────────────────
+function setSyncStatus(state){
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if(!dot) return;
+  dot.className = 'sync-dot' + (state==='offline'?' offline':state==='syncing'?' syncing':'');
+  lbl.textContent = state==='online'?'Live':state==='syncing'?'Saving...':'Offline';
+}
+
+// ── Firebase Config ───────────────────────────────────────────────────────────
+function getStoredConfig(){
+  try{ return JSON.parse(localStorage.getItem('vcut_fb_config')||'null'); }
+  catch(e){ return null; }
+}
+
+function saveConfig(){
+  let raw = document.getElementById('fbConfigInput').value.trim();
+  const pass = document.getElementById('adminPassInput').value.trim();
+  const errEl = document.getElementById('cfgErr');
+  let cfg;
+  try{
+    // Try direct JSON parse first
+    try { cfg = JSON.parse(raw); } catch(e1){
+      // Extract key:value pairs from any format (handles JS object notation too)
+      const result = {};
+      const regex = /["']?(\w+)["']?\s*:\s*["']([^"']+)["']/g;
+      let m;
+      while((m = regex.exec(raw)) !== null){ result[m[1]] = m[2]; }
+      if(Object.keys(result).length >= 3) cfg = result;
+      else throw new Error('Could not parse config');
+    }
+    if(!cfg || !cfg.apiKey || !cfg.projectId) throw new Error('apiKey or projectId missing');
+  } catch(e){
+    errEl.textContent = 'Invalid config: ' + e.message + '. Make sure apiKey and projectId are included.';
+    errEl.classList.add('show');
+    return;
+  }
+  if(!pass){ alert('Please set an admin password.'); return; }
+  errEl.classList.remove('show');
+  localStorage.setItem('vcut_fb_config', JSON.stringify(cfg));
+  localStorage.setItem('vcut_admin_pass', pass);
+  ADMIN_PASS = pass;
+  launchApp(cfg);
+}
+window.saveConfig = saveConfig;
+
+function reconfigFirebase(){
+  localStorage.removeItem('vcut_fb_config');
+  location.reload();
+}
+window.reconfigFirebase = reconfigFirebase;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot(){
+  ADMIN_PASS = localStorage.getItem('vcut_admin_pass') || 'VCut@2026'; // Change this password in Settings
+
+  // Try stored config first, then use hardcoded config
+  let cfg = getStoredConfig();
+  if(!cfg){
+    // Hardcoded Firebase config — no setup needed
+    cfg = {
+      apiKey: "AIzaSyDmGhRW3CAIydXCKRTgrAh1xg2_t9-nhgI",
+      authDomain: "v-cut-8e496.firebaseapp.com",
+      databaseURL: "https://v-cut-8e496-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "v-cut-8e496",
+      storageBucket: "v-cut-8e496.firebasestorage.app",
+      messagingSenderId: "279998839455",
+      appId: "1:279998839455:web:fa71333bfb7ed33b4440aa",
+      measurementId: "G-V0W8TMDDDF"
+    };
+    localStorage.setItem('vcut_fb_config', JSON.stringify(cfg));
+  }
+  // Hide setup screen, go straight to app
+  document.getElementById('setup-screen').style.display = 'none';
+  launchApp(cfg);
+}
+
+async function launchApp(cfg){
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  setSyncStatus('syncing');
+  try{
+    const app = initializeApp(cfg);
+    db = getFirestore(app);
+    await seedDefaultData();
+    subscribeAll();
+  } catch(e){
+    setSyncStatus('offline');
+    toast('Firebase connection failed: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+// ── Seed default branches & staff if empty ────────────────────────────────────
+async function seedDefaultData(){
+  const snap = await getDocs(collection(db,'branches'));
+  if(!snap.empty) return; // already seeded
+
+  const defaultBranches = [
+    {id:'dlf',name:'V-CUT DLF',type:'mens',shop_rent:50000,room_rent:7500,salary_budget:47000,wifi:719,location:'DLF Phase',shop_elec:11229,room_elec:305},
+    {id:'hul1',name:'V-CUT HUL 1',type:'mens',shop_rent:23000,room_rent:10000,salary_budget:31000,wifi:719,location:'Hulimavu',shop_elec:4497,room_elec:457},
+    {id:'hul2',name:'V-CUT HUL 2',type:'mens',shop_rent:15000,room_rent:10000,salary_budget:28000,wifi:295,location:'Hulimavu',shop_elec:5106,room_elec:457},
+    {id:'arek',name:'V-CUT AREK',type:'mens',shop_rent:35000,room_rent:8000,salary_budget:49000,wifi:778,location:'Arekere',shop_elec:1700,room_elec:377},
+    {id:'vij',name:'V-CUT VIJ BANK',type:'mens',shop_rent:39000,room_rent:2250,salary_budget:15000,wifi:778,location:'Vijay Bank Layout',shop_elec:560,room_elec:377},
+    {id:'jp',name:'V-CUT JP NAGAR',type:'mens',shop_rent:25000,room_rent:7500,salary_budget:30000,wifi:778,location:'JP Nagar',shop_elec:5724,room_elec:135},
+    {id:'yelk1',name:'V-CUT YELANKHA 1',type:'mens',shop_rent:7500,room_rent:4000,salary_budget:30000,wifi:778,location:'Yelahanka',shop_elec:2369,room_elec:0},
+    {id:'yelk2',name:'V-CUT YELANKHA 2',type:'mens',shop_rent:28900,room_rent:4000,salary_budget:31000,wifi:778,location:'Yelahanka',shop_elec:5052,room_elec:0},
+    {id:'bana',name:'V-CUT BANASWADI',type:'mens',shop_rent:37800,room_rent:0,salary_budget:30000,wifi:778,location:'Banaswadi',shop_elec:5798,room_elec:0},
+    {id:'harl',name:'V-CUT HARLUR',type:'mens',shop_rent:55000,room_rent:0,salary_budget:30000,wifi:778,location:'Harlur',shop_elec:4732,room_elec:0},
+    {id:'mara',name:'V-CUT MARATHALLI',type:'mens',shop_rent:50000,room_rent:11000,salary_budget:33000,wifi:778,location:'Marathalli',shop_elec:12225,room_elec:0},
+    {id:'hulu',name:'V-CUT HUL UNISEX',type:'unisex',shop_rent:48000,room_rent:18000,salary_budget:48934,wifi:295,location:'Hulimavu',shop_elec:3000,room_elec:0},
+    {id:'dlfu',name:'V-CUT DLF UNISEX',type:'unisex',shop_rent:70000,room_rent:10000,salary_budget:95000,wifi:699,location:'DLF Phase',shop_elec:7058,room_elec:305},
+    {id:'hsr',name:'V-CUT HSR UNISEX',type:'unisex',shop_rent:111510,room_rent:18000,salary_budget:43600,wifi:778,location:'HSR Layout',shop_elec:7673,room_elec:600},
+    {id:'jai',name:'V-CUT JAI NAGAR UNISEX',type:'unisex',shop_rent:120000,room_rent:0,salary_budget:34000,wifi:0,location:'Jayanagar',shop_elec:9044,room_elec:0},
+  ];
+  const defaultStaff = [
+    {id:'s1',name:'SANDY©',branch_id:'dlf',role:'Senior Stylist',mobile:'9082918000',salary:15000,join:'2023-01-01'},
+    {id:'s2',name:'SHARUKH',branch_id:'dlf',role:'Stylist',mobile:'7738869000',salary:12000,join:'2023-03-01'},
+    {id:'s3',name:'CHOTU',branch_id:'dlf',role:'Stylist',mobile:'',salary:10000,join:'2023-06-01'},
+    {id:'s4',name:'KALEEM',branch_id:'hul1',role:'Senior Stylist',mobile:'9258435000',salary:15000,join:'2023-01-01'},
+    {id:'s5',name:'SANU',branch_id:'hul1',role:'Stylist',mobile:'',salary:12000,join:'2023-04-01'},
+    {id:'s6',name:'IMBRAN (C)',branch_id:'hul2',role:'Senior Stylist',mobile:'',salary:14000,join:'2023-01-01'},
+    {id:'s7',name:'ARBAZ',branch_id:'hul2',role:'Stylist',mobile:'',salary:12000,join:'2023-05-01'},
+    {id:'s8',name:'AARIF©',branch_id:'arek',role:'Senior Stylist',mobile:'',salary:18000,join:'2022-06-01'},
+    {id:'s9',name:'SAMEER',branch_id:'arek',role:'Stylist',mobile:'9027322000',salary:12000,join:'2023-01-01'},
+    {id:'s10',name:'SANERAB',branch_id:'arek',role:'Stylist',mobile:'',salary:10000,join:'2023-08-01'},
+    {id:'s11',name:'ALEEM',branch_id:'vij',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s12',name:'FAIZAN',branch_id:'jp',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s13',name:'AMIR',branch_id:'jp',role:'Stylist',mobile:'',salary:12000,join:'2023-04-01'},
+    {id:'s14',name:'SALIM',branch_id:'yelk1',role:'Senior Stylist',mobile:'',salary:14000,join:'2023-01-01'},
+    {id:'s15',name:'KAMIL',branch_id:'yelk1',role:'Stylist',mobile:'7217227000',salary:12000,join:'2023-03-01'},
+    {id:'s16',name:'RIJWAN',branch_id:'yelk2',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s17',name:'NAJIM',branch_id:'yelk2',role:'Stylist',mobile:'',salary:12000,join:'2023-02-01'},
+    {id:'s18',name:'SAJID',branch_id:'bana',role:'Senior Stylist',mobile:'',salary:14000,join:'2023-01-01'},
+    {id:'s19',name:'ARIF',branch_id:'bana',role:'Stylist',mobile:'',salary:12000,join:'2023-04-01'},
+    {id:'s20',name:'ZULFEE',branch_id:'harl',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s21',name:'FAHEEM',branch_id:'harl',role:'Stylist',mobile:'',salary:12000,join:'2023-03-01'},
+    {id:'s22',name:'FARMAN',branch_id:'mara',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s23',name:'ALAM',branch_id:'mara',role:'Senior Stylist',mobile:'7337783000',salary:14000,join:'2023-01-01'},
+    {id:'s24',name:'FIROZ',branch_id:'hulu',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s25',name:'SANABU',branch_id:'hulu',role:'Stylist',mobile:'',salary:12000,join:'2023-04-01'},
+    {id:'s26',name:'PROTIMA',branch_id:'dlfu',role:'Senior Stylist',mobile:'',salary:18000,join:'2022-09-01'},
+    {id:'s27',name:'FURKAN',branch_id:'dlfu',role:'Senior Stylist',mobile:'',salary:18000,join:'2022-06-01'},
+    {id:'s28',name:'NAJIR©',branch_id:'dlfu',role:'Senior Stylist',mobile:'',salary:16000,join:'2022-08-01'},
+    {id:'s29',name:'SHEETAL',branch_id:'dlfu',role:'Stylist',mobile:'',salary:13000,join:'2023-02-01'},
+    {id:'s30',name:'YOGESH',branch_id:'hsr',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s31',name:'SAJID_HSR',branch_id:'hsr',role:'Stylist',mobile:'',salary:12000,join:'2023-03-01'},
+    {id:'s32',name:'FAZIL',branch_id:'jai',role:'Senior Stylist',mobile:'',salary:15000,join:'2023-01-01'},
+    {id:'s33',name:'AMAN',branch_id:'jai',role:'Stylist',mobile:'',salary:12000,join:'2023-02-01'},
+  ];
+  for(const b of defaultBranches) await setDoc(doc(db,'branches',b.id), b);
+  for(const s of defaultStaff) await setDoc(doc(db,'staff',s.id), s);
+  toast('Default data loaded into Firebase!','success');
+}
+
+// ── Real-time listeners ───────────────────────────────────────────────────────
+function subscribeAll(){
+  unsubscribers.forEach(u=>u());
+  unsubscribers = [];
+
+  unsubscribers.push(onSnapshot(collection(db,'branches'), snap=>{
+    branches = snap.docs.map(d=>({...d.data(),id:d.id}));
+    setSyncStatus('online');
+    updateSyncTime();
+    refreshAll();
+  }, err=>{ setSyncStatus('offline'); console.error(err); }));
+
+  unsubscribers.push(onSnapshot(collection(db,'staff'), snap=>{
+    staff = snap.docs.map(d=>({...d.data(),id:d.id}));
+    refreshAll();
+  }));
+
+  unsubscribers.push(onSnapshot(query(collection(db,'entries'),orderBy('date','desc')), snap=>{
+    entries = snap.docs.map(d=>({...d.data(),id:d.id}));
+    refreshAll();
+  }, err=>console.error(err)));
+}
+
+function updateSyncTime(){
+  const el = document.getElementById('syncTime');
+  if(el) el.textContent = 'Last sync: ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+function refreshAll(){
+  const active = document.querySelector('.page.active');
+  if(!active) return;
+  const id = active.id.replace('page-','');
+  const map = {
+    dashboard: renderDashboard, branches: renderBranchGrid,
+    entry: renderEntryForm, staff: renderStaff,
+    expenses: ()=>renderExpTab(currentExpTab),
+    pl: renderPL, settings: renderSettings
+  };
+  if(map[id]) map[id]();
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+function handleAdminClick(){
+  if(isAdmin){ logoutAdmin(); }
+  else { document.getElementById('adminOverlay').classList.remove('hidden'); document.getElementById('adminPw').focus(); }
+}
+window.handleAdminClick = handleAdminClick;
+
+function checkAdmin(){
+  const pw = document.getElementById('adminPw').value;
+  if(pw === ADMIN_PASS){
+    isAdmin = true;
+    document.getElementById('adminOverlay').classList.add('hidden');
+    document.getElementById('adminPw').value = '';
+    document.getElementById('adminErr').classList.remove('show');
+    const pill = document.getElementById('adminPill');
+    pill.textContent = 'ADMIN ✓';
+    pill.className = 'admin-pill on';
+    toast('Admin mode ON','success');
+    refreshAll();
+  } else {
+    document.getElementById('adminErr').classList.add('show');
+    document.getElementById('adminPw').value = '';
+  }
+}
+window.checkAdmin = checkAdmin;
+
+function closeAdmin(){
+  document.getElementById('adminOverlay').classList.add('hidden');
+  document.getElementById('adminPw').value = '';
+  document.getElementById('adminErr').classList.remove('show');
+}
+window.closeAdmin = closeAdmin;
+
+function logoutAdmin(){
+  if(!confirm('Logout from admin mode?')) return;
+  isAdmin = false;
+  const pill = document.getElementById('adminPill');
+  pill.textContent = 'ADMIN';
+  pill.className = 'admin-pill off';
+  toast('Admin mode OFF','error');
+  refreshAll();
+}
+
+function M(val){ return isAdmin ? INR(val) : MASK; }
+function MP(val){ return isAdmin ? val : '●●●'; }
+
+// ── Computed helpers ──────────────────────────────────────────────────────────
+function bIncome(bid){ return entries.filter(e=>e.branch_id===bid).reduce((s,e)=>s+(e.online||0)+(e.cash||0),0); }
+function bStaff(bid){ return staff.filter(s=>s.branch_id===bid); }
+function bEntries(bid){ return entries.filter(e=>e.branch_id===bid); }
+function bExpenses(bid){
+  const b = branches.find(x=>x.id===bid); if(!b) return 0;
+  const sal = bStaff(bid).reduce((s,st)=>s+(st.salary||0),0);
+  const inc = entries.filter(e=>e.branch_id===bid).reduce((s,e)=>s+(e.staff_billing||[]).reduce((ss,sb)=>ss+(sb.incentive||0),0),0);
+  const cash = entries.filter(e=>e.branch_id===bid).reduce((s,e)=>s+(e.tips||0)+(e.others||0)+(e.material||0)+(e.petrol||0),0);
+  return sal+inc+cash+(b.shop_rent||0)+(b.room_rent||0)+(b.shop_elec||0)+(b.room_elec||0)+(b.wifi||0);
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const map = {
+    dashboard: renderDashboard, branches: renderBranchGrid,
+    entry: renderEntryForm, staff: renderStaff,
+    expenses: ()=>renderExpTab(currentExpTab),
+    pl: renderPL, settings: renderSettings
+  };
+  if(map[id]) map[id]();
+}
+window.showPage = showPage;
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const totalInc = branches.reduce((s,b)=>s+bIncome(b.id),0);
+  const totalExp = branches.reduce((s,b)=>s+bExpenses(b.id),0);
+  document.getElementById('dash-kpis').innerHTML = [
+    {l:'Total Income',v:INR(totalInc),s:'This month',c:'green'},
+    {l:'Total Expenses',v:M(totalExp),s:'All branches',c:'red'},
+    {l:'Net P&L',v:isAdmin?(totalInc-totalExp<0?'('+INR(totalInc-totalExp)+')':INR(totalInc-totalExp)):MASK,s:totalInc-totalExp<0?'Loss':'Profit',c:totalInc-totalExp<0?'red':'green'},
+    {l:'Branches',v:branches.length,s:'Active locations',c:'blue'},
+    {l:'Staff',v:staff.length,s:'Total members',c:'blue'},
+    {l:'Entries',v:entries.length,s:'Daily records in Firebase',c:'orange'},
+  ].map(k=>`<div class="kpi"><div class="kpi-l">${k.l}</div><div class="kpi-v ${k.c}">${k.v}</div><div class="kpi-s">${k.s}</div></div>`).join('');
+
+  const sorted = [...branches].sort((a,b)=>bIncome(b.id)-bIncome(a.id));
+  document.getElementById('dash-table').innerHTML = `<thead><tr><th>Branch</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net P&L</th><th>Status</th></tr></thead><tbody>
+  ${sorted.map(b=>{const i=bIncome(b.id),e=bExpenses(b.id),n=i-e;return `<tr><td style="font-weight:500">${b.name}</td><td class="num">${INR(i)}</td><td class="num">${M(e)}</td><td class="num">${isAdmin?(n<0?'('+INR(n)+')':INR(n)):MASK}</td><td><span class="pill ${n>=0?'pg':'pr'}">${n>=0?'Profit':'Loss'}</span></td></tr>`;}).join('')}
+  <tr class="tf"><td>TOTAL</td><td class="num">${INR(totalInc)}</td><td class="num">${M(totalExp)}</td><td class="num red">${isAdmin?'('+INR(totalExp-totalInc)+')':MASK}</td><td></td></tr></tbody>`;
+
+  const totSal = branches.reduce((s,b)=>s+bStaff(b.id).reduce((ss,st)=>ss+(st.salary||0),0),0);
+  const totRent = branches.reduce((s,b)=>s+(b.shop_rent||0)+(b.room_rent||0),0);
+  const totElec = branches.reduce((s,b)=>s+(b.shop_elec||0)+(b.room_elec||0),0);
+  const totWifi = branches.reduce((s,b)=>s+(b.wifi||0),0);
+  const totInc2 = entries.reduce((s,e)=>s+(e.staff_billing||[]).reduce((ss,sb)=>ss+(sb.incentive||0),0),0);
+  const totCash = entries.reduce((s,e)=>s+(e.tips||0)+(e.others||0)+(e.material||0)+(e.petrol||0),0);
+  const totExp = totSal+totRent+totElec+totInc2+totWifi+totCash;
+  document.getElementById('dash-exp').innerHTML=`<thead><tr><th>Category</th><th class="num">Amount</th><th class="num">%</th></tr></thead><tbody>
+  ${[['Salary',totSal,true],['Rent',totRent,true],['Electricity',totElec,false],['Incentives',totInc2,false],['WiFi',totWifi,false],['Cash/Misc',totCash,false]].map(([cat,amt,adm])=>`<tr><td>${cat}</td><td class="num">${adm?M(amt):INR(amt)}</td><td class="num">${totExp>0&&(isAdmin||!adm)?(amt/totExp*100).toFixed(1)+'%':adm?MASK:'0%'}</td></tr>`).join('')}</tbody>`;
+}
+
+// ── BRANCHES ──────────────────────────────────────────────────────────────────
+function renderBranchGrid(){
+  const el = document.getElementById('branch-grid');
+  if(!el) return;
+  el.innerHTML = branches.map(b=>{
+    const inc=bIncome(b.id),exp=bExpenses(b.id),net=inc-exp;
+    const rent=(b.shop_rent||0)+(b.room_rent||0);
+    const pct=inc>0?Math.round(rent/inc*100):0;
+    return `<div class="bcard" data-type="${b.type}" onclick="showBranchDetail('${b.id}')">
+      <div class="bcard-head"><span>${b.name}</span><span class="pill ${b.type==='unisex'?'pb':'pa'}" style="font-size:10px">${b.type.toUpperCase()}</span></div>
+      <div class="bcard-body">
+        <div class="br"><span class="bl">Income</span><span class="green" style="font-weight:500">${INR(inc)}</span></div>
+        <div class="br"><span class="bl">Expenses</span><span class="red">${M(exp)}</span></div>
+        <div class="br"><span class="bl">Net P&L</span><span class="${net<0?'red':'green'}" style="font-weight:500">${isAdmin?(net<0?'('+INR(net)+')':INR(net)):MASK}</span></div>
+        <div class="br"><span class="bl">Rent burden</span><span class="${pct>100?'red':pct>60?'orange':''}" style="font-weight:500">${isAdmin?pct+'%':MASK}</span></div>
+        <div class="br"><span class="bl">Staff</span><span>${bStaff(b.id).length} members</span></div>
+        <div class="br"><span class="bl">Entries</span><span>${bEntries(b.id).length} records</span></div>
+        <div style="margin-top:6px;font-size:10px;color:#666">Tap to view details →</div>
+      </div></div>`;
+  }).join('');
+}
+
+function filterB(type, btn){
+  document.querySelectorAll('.t2b').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.bcard').forEach(c=>{c.style.display=(type==='all'||c.dataset.type===type)?'':'none';});
+}
+window.filterB = filterB;
+
+function showBranchDetail(bid){
+  const b = branches.find(x=>x.id===bid); if(!b) return;
+  const brStaff = bStaff(bid);
+  const brEntries = bEntries(bid).sort((a,c)=>a.date.localeCompare(c.date));
+  const inc=bIncome(bid), exp=bExpenses(bid);
+  const sal=brStaff.reduce((s,st)=>s+(st.salary||0),0);
+  const rent=(b.shop_rent||0)+(b.room_rent||0);
+
+  let dailyRows = brEntries.map(e=>{
+    const tot=(e.online||0)+(e.cash||0);
+    const inc2=(e.staff_billing||[]).reduce((s,sb)=>s+(sb.incentive||0),0);
+    return `<tr><td>${e.date}</td><td class="num">${INR(e.online||0)}</td><td class="num">${INR(e.cash||0)}</td><td class="num" style="font-weight:500">${INR(tot)}</td><td class="num">${INR(inc2)}</td><td class="num">${e.material?INR(e.material):'-'}</td>
+    <td>${isAdmin?`<button class="btn btn-d btn-sm" onclick="deleteEntry('${e.id}','${bid}')">Del</button>`:'—'}</td></tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:14px;color:#666">No entries yet</td></tr>`;
+
+  let staffRows = brStaff.map(s=>{
+    const aprInc = entries.filter(e=>e.branch_id===bid).reduce((sum,e)=>{const sb=(e.staff_billing||[]).find(x=>x.staff_id===s.id);return sum+(sb?sb.incentive||0:0);},0);
+    return `<tr><td style="font-weight:500">${s.name}</td><td>${s.role}</td><td class="num">${M(s.salary||0)}</td><td class="num green">${INR(aprInc)}</td></tr>`;
+  }).join('') || `<tr><td colspan="4" style="text-align:center;padding:10px;color:#666">No staff assigned</td></tr>`;
+
+  const html=`<div class="detail-hdr">
+    <button class="back-btn" onclick="hideBranchDetail()">← All Branches</button>
+    <div><div style="font-size:16px;font-weight:500">${b.name}</div><div style="font-size:11px;color:#666">${b.type==='unisex'?'Unisex':'Men\'s'} · ${b.location||'Bangalore'}</div></div>
+    <button class="btn btn-p" style="margin-left:auto;font-size:11px" onclick="quickEntry('${bid}')">+ Add Entry</button>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-l">Income</div><div class="kpi-v green">${INR(inc)}</div><div class="kpi-s">${brEntries.length} entries in Firebase</div></div>
+    <div class="kpi"><div class="kpi-l">Expenses</div><div class="kpi-v red">${M(exp)}</div></div>
+    <div class="kpi"><div class="kpi-l">Net P&L</div><div class="kpi-v red">${isAdmin?'('+INR(exp-inc)+')':MASK}</div></div>
+    <div class="kpi"><div class="kpi-l">Monthly Rent</div><div class="kpi-v orange">${M(rent)}</div><div class="kpi-s">${isAdmin&&inc>0?Math.round(rent/inc*100)+'% of income':''}</div></div>
+    <div class="kpi"><div class="kpi-l">Salary</div><div class="kpi-v blue">${M(sal)}</div></div>
+    <div class="kpi"><div class="kpi-l">Staff</div><div class="kpi-v">${brStaff.length}</div></div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="st">Daily entries</div>
+      <div class="card" style="overflow-x:auto"><table><thead><tr><th>Date</th><th class="num">Online</th><th class="num">Cash</th><th class="num">Total</th><th class="num">Incentives</th><th class="num">Material</th><th></th></tr></thead><tbody>${dailyRows}</tbody></table></div>
+    </div>
+    <div>
+      <div class="st">Staff</div>
+      <div class="card"><table><thead><tr><th>Name</th><th>Role</th><th class="num">Salary</th><th class="num">Incentives</th></tr></thead><tbody>${staffRows}</tbody></table></div>
+      <div class="st" style="margin-top:12px">Fixed costs</div>
+      <div class="card"><table><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>
+        <tr><td>Shop Rent</td><td class="num">${M(b.shop_rent||0)}</td></tr>
+        <tr><td>Room Rent</td><td class="num">${M(b.room_rent||0)}</td></tr>
+        <tr><td>Shop Electricity</td><td class="num">${INR(b.shop_elec||0)}</td></tr>
+        <tr><td>Room Electricity</td><td class="num">${INR(b.room_elec||0)}</td></tr>
+        <tr><td>WiFi</td><td class="num">${INR(b.wifi||0)}</td></tr>
+        <tr class="tf"><td>Total Salary</td><td class="num">${M(sal)}</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>`;
+
+  document.getElementById('branch-list-view').style.display='none';
+  const dv = document.getElementById('branch-detail-view');
+  dv.style.display='block'; dv.innerHTML=html;
+}
+window.showBranchDetail = showBranchDetail;
+
+function hideBranchDetail(){
+  document.getElementById('branch-list-view').style.display='';
+  document.getElementById('branch-detail-view').style.display='none';
+  renderBranchGrid();
+}
+window.hideBranchDetail = hideBranchDetail;
+
+async function deleteEntry(eid, bid){
+  if(!isAdmin){toast('Admin required','error');return;}
+  if(!confirm('Delete this entry from Firebase?')) return;
+  await deleteDoc(doc(db,'entries',eid));
+  toast('Entry deleted','error');
+  showBranchDetail(bid);
+}
+window.deleteEntry = deleteEntry;
+
+function quickEntry(bid){
+  showPage('entry', null);
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nb')[2].classList.add('active');
+  renderEntryForm();
+  document.getElementById('e-branch').value=bid;
+  loadEntryForm();
+}
+window.quickEntry = quickEntry;
+
+// ── DATA ENTRY ────────────────────────────────────────────────────────────────
+function renderEntryForm(){
+  const sel = document.getElementById('e-branch');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Select...</option>' + branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  if(cur) sel.value = cur;
+  if(!document.getElementById('e-date').value){
+    document.getElementById('e-date').value = new Date().toISOString().slice(0,10);
+  }
+  renderRecentEntries();
+}
+
+function loadEntryForm(){
+  const bid = document.getElementById('e-branch').value;
+  if(!bid){ document.getElementById('entry-body').style.display='none'; return; }
+  const brStaff = bStaff(bid);
+  document.getElementById('entry-body').style.display='block';
+  document.getElementById('e-income').innerHTML=`
+    <div class="fg"><label>Online Income (₹)</label><input type="number" id="ei-online" placeholder="0" min="0"></div>
+    <div class="fg"><label>Cash Income (₹)</label><input type="number" id="ei-cash" placeholder="0" min="0"></div>
+    <div class="fg"><label>Material Sales (₹)</label><input type="number" id="ei-material" placeholder="0" min="0"></div>`;
+  document.getElementById('e-staff').innerHTML = brStaff.length ?
+    `<div style="overflow-x:auto"><table style="min-width:380px">
+      <thead><tr><th>Staff</th><th class="num">Billing (₹)</th><th class="num">Incentive (10%)</th></tr></thead>
+      <tbody>${brStaff.map(s=>`<tr>
+        <td style="font-weight:500">${s.name} <span style="font-size:10px;color:#888">${s.role}</span></td>
+        <td class="num"><input type="number" id="sb-b-${s.id}" placeholder="0" min="0" style="width:90px;text-align:right;padding:5px 7px;border:.5px solid #e0e0e0;border-radius:4px;font-size:12px" oninput="autoInc('${s.id}')"></td>
+        <td class="num"><input type="number" id="sb-i-${s.id}" placeholder="0" min="0" style="width:90px;text-align:right;padding:5px 7px;border:.5px solid #e0e0e0;border-radius:4px;font-size:12px"></td>
+      </tr>`).join('')}</tbody></table></div>` :
+    '<div style="padding:10px;color:#666;font-size:12px">No staff assigned to this branch. Add staff in the Staff tab first.</div>';
+  document.getElementById('e-expenses').innerHTML=`
+    <div class="fg"><label>Tips (₹)</label><input type="number" id="ei-tips" placeholder="0" min="0"></div>
+    <div class="fg"><label>Other Cash Exp (₹)</label><input type="number" id="ei-others" placeholder="0" min="0"></div>
+    <div class="fg"><label>Petrol (₹)</label><input type="number" id="ei-petrol" placeholder="0" min="0"></div>
+    <div class="fg"><label>Notes</label><input id="ei-notes" placeholder="Optional notes..."></div>`;
+}
+window.loadEntryForm = loadEntryForm;
+
+function autoInc(sid){
+  const bill = parseFloat(document.getElementById('sb-b-'+sid)?.value||0);
+  const el = document.getElementById('sb-i-'+sid);
+  if(el) el.value = Math.round(bill*0.1);
+}
+window.autoInc = autoInc;
+
+async function saveEntry(){
+  const bid = document.getElementById('e-branch').value;
+  const date = document.getElementById('e-date').value;
+  if(!bid||!date){ toast('Select branch and date','error'); return; }
+  setSyncStatus('syncing');
+  const brStaff = bStaff(bid);
+  const staff_billing = brStaff.map(s=>({
+    staff_id:s.id, name:s.name,
+    billing:parseFloat(document.getElementById('sb-b-'+s.id)?.value||0),
+    incentive:parseFloat(document.getElementById('sb-i-'+s.id)?.value||0)
+  })).filter(x=>x.billing>0||x.incentive>0);
+
+  const entry = {
+    branch_id:bid, date,
+    online:parseFloat(document.getElementById('ei-online')?.value||0),
+    cash:parseFloat(document.getElementById('ei-cash')?.value||0),
+    material:parseFloat(document.getElementById('ei-material')?.value||0),
+    tips:parseFloat(document.getElementById('ei-tips')?.value||0),
+    others:parseFloat(document.getElementById('ei-others')?.value||0),
+    petrol:parseFloat(document.getElementById('ei-petrol')?.value||0),
+    notes:document.getElementById('ei-notes')?.value||'',
+    staff_billing, saved_at: new Date().toISOString()
+  };
+
+  try{
+    // check if entry exists for same branch+date
+    const existing = entries.find(e=>e.branch_id===bid&&e.date===date);
+    if(existing){
+      await setDoc(doc(db,'entries',existing.id), entry);
+      toast('Entry updated in Firebase!','success');
+    } else {
+      await addDoc(collection(db,'entries'), entry);
+      toast('Entry saved to Firebase!','success');
+    }
+    document.getElementById('entry-status').textContent = 'Saved at '+new Date().toLocaleTimeString();
+  } catch(e){
+    setSyncStatus('offline');
+    toast('Save failed: '+e.message,'error');
+  }
+}
+window.saveEntry = saveEntry;
+
+function clearEntry(){
+  document.getElementById('e-branch').value='';
+  document.getElementById('entry-body').style.display='none';
+}
+window.clearEntry = clearEntry;
+
+function renderRecentEntries(){
+  const recent = [...entries].slice(0,15);
+  document.getElementById('recent-body').innerHTML = recent.length ?
+    recent.map(e=>{
+      const b = branches.find(x=>x.id===e.branch_id);
+      const tot=(e.online||0)+(e.cash||0);
+      return `<tr><td>${e.date}</td><td style="font-weight:500">${b?b.name:'?'}</td><td class="num">${INR(e.online||0)}</td><td class="num">${INR(e.cash||0)}</td><td class="num">${INR(tot)}</td><td>${isAdmin?`<button class="btn btn-d btn-sm" onclick="delRecent('${e.id}')">Del</button>`:'—'}</td></tr>`;
+    }).join('') :
+    '<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">No entries yet</td></tr>';
+}
+
+async function delRecent(eid){
+  if(!isAdmin){toast('Admin required','error');return;}
+  if(!confirm('Delete?')) return;
+  await deleteDoc(doc(db,'entries',eid));
+  toast('Deleted','error');
+}
+window.delRecent = delRecent;
+
+// ── STAFF ─────────────────────────────────────────────────────────────────────
+function renderStaff(){
+  const sel = document.getElementById('staff-filter');
+  sel.innerHTML='<option value="">All Branches</option>'+branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  const sfBranch = document.getElementById('sf-branch');
+  if(sfBranch) sfBranch.innerHTML = branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+
+  const filter = sel.value;
+  const filtered = filter ? staff.filter(s=>s.branch_id===filter) : staff;
+  document.getElementById('staff-table').innerHTML=`
+    <thead><tr><th>#</th><th>Name</th><th>Branch</th><th>Role</th><th>Mobile</th><th class="num">Salary</th><th class="num">Incentives</th><th></th></tr></thead>
+    <tbody>${filtered.map((s,i)=>{
+      const b=branches.find(x=>x.id===s.branch_id);
+      const aprInc=entries.filter(e=>e.branch_id===s.branch_id).reduce((sum,e)=>{const sb=(e.staff_billing||[]).find(x=>x.staff_id===s.id);return sum+(sb?sb.incentive||0:0);},0);
+      return `<tr><td style="color:#888">${i+1}</td><td style="font-weight:500">${s.name}</td><td style="font-size:11px">${b?b.name:'-'}</td><td><span class="pill pb" style="font-size:10px">${s.role}</span></td><td style="font-size:11px">${s.mobile||'-'}</td><td class="num">${M(s.salary||0)}</td><td class="num green">${INR(aprInc)}</td>
+      <td>${isAdmin?`<button class="btn btn-s btn-sm" onclick="editStaff('${s.id}')">Edit</button> <button class="btn btn-d btn-sm" onclick="deleteStaff('${s.id}')">Del</button>`:'<span style="font-size:10px;color:#aaa">Admin only</span>'}</td></tr>`;
+    }).join('')}</tbody>`;
+}
+window.renderStaff = renderStaff;
+
+function toggleAddStaff(){
+  if(!isAdmin){toast('Admin login required to add staff','error');return;}
+  const p=document.getElementById('add-staff-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  document.getElementById('sf-edit-id').value='';
+}
+window.toggleAddStaff = toggleAddStaff;
+
+function editStaff(sid){
+  if(!isAdmin){toast('Admin required','error');return;}
+  const s=staff.find(x=>x.id===sid);if(!s)return;
+  document.getElementById('sf-name').value=s.name;
+  document.getElementById('sf-branch').value=s.branch_id;
+  document.getElementById('sf-role').value=s.role;
+  document.getElementById('sf-mobile').value=s.mobile||'';
+  document.getElementById('sf-salary').value=s.salary||'';
+  document.getElementById('sf-join').value=s.join||'';
+  document.getElementById('sf-edit-id').value=sid;
+  document.getElementById('add-staff-panel').style.display='block';
+  document.getElementById('add-staff-panel').scrollIntoView({behavior:'smooth'});
+}
+window.editStaff = editStaff;
+
+async function saveStaff(){
+  if(!isAdmin){toast('Admin required','error');return;}
+  const name=document.getElementById('sf-name').value.trim();
+  const branch_id=document.getElementById('sf-branch').value;
+  if(!name||!branch_id){toast('Name and branch required','error');return;}
+  const eid=document.getElementById('sf-edit-id').value;
+  const s={name,branch_id,role:document.getElementById('sf-role').value,mobile:document.getElementById('sf-mobile').value,salary:parseFloat(document.getElementById('sf-salary').value||0),join:document.getElementById('sf-join').value};
+  try{
+    if(eid){ await setDoc(doc(db,'staff',eid),s); toast('Staff updated!','success'); }
+    else { await addDoc(collection(db,'staff'),s); toast('Staff added!','success'); }
+    document.getElementById('add-staff-panel').style.display='none';
+    document.getElementById('sf-name').value='';
+    document.getElementById('sf-edit-id').value='';
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+window.saveStaff = saveStaff;
+
+async function deleteStaff(sid){
+  if(!isAdmin){toast('Admin required','error');return;}
+  if(!confirm('Delete this staff member from Firebase?')) return;
+  await deleteDoc(doc(db,'staff',sid));
+  toast('Staff removed','error');
+}
+window.deleteStaff = deleteStaff;
+
+// ── EXPENSES ──────────────────────────────────────────────────────────────────
+function renderExpTab(tab){
+  currentExpTab=tab;
+  const el=document.getElementById('exp-content');
+  if(tab==='rent'){
+    el.innerHTML=`<div class="card" style="overflow-x:auto"><table>
+      <thead><tr><th>#</th><th>Branch</th><th class="num">Shop Rent</th><th class="num">Room Rent</th><th class="num">Total</th><th class="num">Income</th><th class="num">Rent %</th><th>Status</th></tr></thead>
+      <tbody>${branches.map((b,i)=>{const t=(b.shop_rent||0)+(b.room_rent||0);const inc=bIncome(b.id);const pct=inc>0?Math.round(t/inc*100):0;const pc=pct>100?'pr':pct>60?'pa':'pg';const st=pct>100?'Critical':pct>60?'High':'OK';
+        return `<tr><td>${i+1}</td><td style="font-weight:500">${b.name}</td><td class="num">${M(b.shop_rent||0)}</td><td class="num">${M(b.room_rent||0)}</td><td class="num" style="font-weight:500">${M(t)}</td><td class="num">${INR(inc)}</td><td class="num ${pct>100?'red':pct>60?'orange':''}">${isAdmin?pct+'%':MASK}</td><td><span class="pill ${pc}">${st}</span></td></tr>`;}).join('')}
+      <tr class="tf"><td colspan="2">TOTAL</td><td class="num">${M(branches.reduce((s,b)=>s+(b.shop_rent||0),0))}</td><td class="num">${M(branches.reduce((s,b)=>s+(b.room_rent||0),0))}</td><td class="num">${M(branches.reduce((s,b)=>s+(b.shop_rent||0)+(b.room_rent||0),0))}</td><td colspan="3"></td></tr></tbody></table>
+      ${!isAdmin?'<div style="padding:10px 14px;font-size:11px;color:#a32d2d;background:#fcebeb">Login as Admin to view rent amounts</div>':''}</div>`;
+  } else if(tab==='elec'){
+    el.innerHTML=`<div class="card"><table>
+      <thead><tr><th>#</th><th>Branch</th><th class="num">Shop Elec (₹)</th><th class="num">Room Elec (₹)</th><th class="num">Total</th></tr></thead>
+      <tbody>${branches.map((b,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${b.name}</td>
+        <td class="num"><input type="number" value="${b.shop_elec||0}" style="width:90px;text-align:right;padding:5px 7px;border:.5px solid #e0e0e0;border-radius:4px;font-size:12px" ${!isAdmin?'disabled':''} onchange="updateBField('${b.id}','shop_elec',this.value)"></td>
+        <td class="num"><input type="number" value="${b.room_elec||0}" style="width:90px;text-align:right;padding:5px 7px;border:.5px solid #e0e0e0;border-radius:4px;font-size:12px" ${!isAdmin?'disabled':''} onchange="updateBField('${b.id}','room_elec',this.value)"></td>
+        <td class="num" style="font-weight:500">${INR((b.shop_elec||0)+(b.room_elec||0))}</td></tr>`).join('')}
+      <tr class="tf"><td colspan="2">TOTAL</td><td class="num">${INR(branches.reduce((s,b)=>s+(b.shop_elec||0),0))}</td><td class="num">${INR(branches.reduce((s,b)=>s+(b.room_elec||0),0))}</td><td class="num">${INR(branches.reduce((s,b)=>s+(b.shop_elec||0)+(b.room_elec||0),0))}</td></tr></tbody></table>
+      <div style="padding:9px 14px;font-size:11px;color:#666">${isAdmin?'Edit values directly — auto-saves to Firebase':'Admin login required to edit'}</div></div>`;
+  } else if(tab==='wifi'){
+    el.innerHTML=`<div class="card"><table>
+      <thead><tr><th>#</th><th>Branch</th><th class="num">WiFi Bill (₹)</th><th>Status</th></tr></thead>
+      <tbody>${branches.map((b,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${b.name}</td>
+        <td class="num"><input type="number" value="${b.wifi||0}" style="width:90px;text-align:right;padding:5px 7px;border:.5px solid #e0e0e0;border-radius:4px;font-size:12px" ${!isAdmin?'disabled':''} onchange="updateBField('${b.id}','wifi',this.value)"></td>
+        <td><span class="pill ${(b.wifi||0)>0?'pg':'pa'}">${(b.wifi||0)>0?'Active':'None'}</span></td></tr>`).join('')}
+      <tr class="tf"><td colspan="2">TOTAL</td><td class="num">${INR(branches.reduce((s,b)=>s+(b.wifi||0),0))}</td><td></td></tr></tbody></table></div>`;
+  } else {
+    el.innerHTML=`<div class="card" style="overflow-x:auto"><table>
+      <thead><tr><th>Branch</th><th class="num">Salary</th><th class="num">Incentives</th><th class="num">Rent</th><th class="num">Elec</th><th class="num">WiFi</th><th class="num">Cash</th><th class="num">TOTAL</th></tr></thead>
+      <tbody>${branches.map(b=>{
+        const sal=bStaff(b.id).reduce((s,st)=>s+(st.salary||0),0);
+        const inc2=entries.filter(e=>e.branch_id===b.id).reduce((s,e)=>s+(e.staff_billing||[]).reduce((ss,sb)=>ss+(sb.incentive||0),0),0);
+        const rent=(b.shop_rent||0)+(b.room_rent||0);const elec=(b.shop_elec||0)+(b.room_elec||0);
+        const misc=entries.filter(e=>e.branch_id===b.id).reduce((s,e)=>s+(e.tips||0)+(e.others||0)+(e.material||0)+(e.petrol||0),0);
+        const total=sal+inc2+rent+elec+(b.wifi||0)+misc;
+        return `<tr><td style="font-weight:500;white-space:nowrap">${b.name}</td><td class="num">${M(sal)}</td><td class="num">${INR(inc2)}</td><td class="num">${M(rent)}</td><td class="num">${INR(elec)}</td><td class="num">${INR(b.wifi||0)}</td><td class="num">${INR(misc)}</td><td class="num" style="font-weight:500">${M(total)}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+}
+
+function showExpTab(tab,btn){
+  document.querySelectorAll('#page-expenses .t2b').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderExpTab(tab);
+}
+window.showExpTab = showExpTab;
+
+async function updateBField(bid,field,val){
+  if(!isAdmin){toast('Admin required','error');return;}
+  try{
+    await setDoc(doc(db,'branches',bid),{[field]:parseFloat(val)||0},{merge:true});
+    toast('Saved to Firebase','success');
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+window.updateBField = updateBField;
+
+// ── P&L ───────────────────────────────────────────────────────────────────────
+function renderPL(){
+  const totalInc=branches.reduce((s,b)=>s+bIncome(b.id),0);
+  const totalExp=branches.reduce((s,b)=>s+bExpenses(b.id),0);
+  document.getElementById('pl-kpis').innerHTML=[
+    {l:'Total Income',v:INR(totalInc),c:'green'},{l:'Total Expenses',v:M(totalExp),c:'red'},
+    {l:'Net P&L',v:isAdmin?'('+INR(totalExp-totalInc)+')':MASK,c:'red'},
+    {l:'Coverage',v:isAdmin&&totalExp>0?(totalInc/totalExp*100).toFixed(1)+'%':MASK,c:'orange'},
+  ].map(k=>`<div class="kpi"><div class="kpi-l">${k.l}</div><div class="kpi-v ${k.c}">${k.v}</div></div>`).join('');
+
+  document.getElementById('pl-table').innerHTML=`
+    <thead><tr><th>#</th><th>Branch</th><th class="num">Income</th><th class="num">Salary</th><th class="num">Incentives</th><th class="num">Rent</th><th class="num">Elec+WiFi</th><th class="num">Other</th><th class="num">Total Exp</th><th class="num">Net P&L</th></tr></thead>
+    <tbody>${branches.map((b,i)=>{
+      const inc=bIncome(b.id);
+      const sal=bStaff(b.id).reduce((s,st)=>s+(st.salary||0),0);
+      const inc2=entries.filter(e=>e.branch_id===b.id).reduce((s,e)=>s+(e.staff_billing||[]).reduce((ss,sb)=>ss+(sb.incentive||0),0),0);
+      const rent=(b.shop_rent||0)+(b.room_rent||0);
+      const ew=(b.shop_elec||0)+(b.room_elec||0)+(b.wifi||0);
+      const misc=entries.filter(e=>e.branch_id===b.id).reduce((s,e)=>s+(e.tips||0)+(e.others||0)+(e.material||0)+(e.petrol||0),0);
+      const exp=sal+inc2+rent+ew+misc;const net=inc-exp;
+      return `<tr><td style="color:#888">${i+1}</td><td style="font-weight:500;white-space:nowrap">${b.name}</td>
+        <td class="num green">${INR(inc)}</td><td class="num">${M(sal)}</td><td class="num">${INR(inc2)}</td><td class="num">${M(rent)}</td><td class="num">${INR(ew)}</td><td class="num">${INR(misc)}</td><td class="num">${M(exp)}</td>
+        <td class="num ${net<0?'red':'green'}" style="font-weight:500">${isAdmin?(net<0?'('+INR(net)+')':INR(net)):MASK}</td></tr>`;
+    }).join('')}
+    <tr class="tf"><td colspan="2">TOTAL</td><td class="num">${INR(totalInc)}</td><td colspan="6"></td><td class="num red">${isAdmin?'('+INR(totalExp-totalInc)+')':MASK}</td></tr></tbody>`;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function renderSettings(){
+  document.getElementById('settings-admin-gate').style.display = isAdmin?'block':'none';
+  document.getElementById('settings-notice').style.display = isAdmin?'none':'block';
+  document.getElementById('settings-table').innerHTML=`
+    <thead><tr><th>#</th><th>Branch</th><th>Type</th><th class="num">Shop Rent</th><th class="num">Room Rent</th><th>Location</th><th></th></tr></thead>
+    <tbody>${branches.map((b,i)=>`<tr><td>${i+1}</td><td style="font-weight:500">${b.name}</td><td><span class="pill ${b.type==='unisex'?'pb':'pa'}">${b.type}</span></td><td class="num">${M(b.shop_rent||0)}</td><td class="num">${M(b.room_rent||0)}</td><td>${b.location||'-'}</td><td>${isAdmin?`<button class="btn btn-s btn-sm" onclick="editBranch('${b.id}')">Edit</button>`:'—'}</td></tr>`).join('')}</tbody>`;
+}
+
+function editBranch(bid){
+  if(!isAdmin) return;
+  const b=branches.find(x=>x.id===bid);if(!b)return;
+  document.getElementById('set-name').value=b.name;
+  document.getElementById('set-type').value=b.type;
+  document.getElementById('set-srent').value=b.shop_rent||'';
+  document.getElementById('set-rrent').value=b.room_rent||'';
+  document.getElementById('set-sal').value=b.salary_budget||'';
+  document.getElementById('set-wifi').value=b.wifi||'';
+  document.getElementById('set-selec').value=b.shop_elec||'';
+  document.getElementById('set-relec').value=b.room_elec||'';
+  document.getElementById('set-loc').value=b.location||'';
+  document.getElementById('set-edit-id').value=bid;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+window.editBranch = editBranch;
+
+async function saveBranch(){
+  if(!isAdmin){toast('Admin required','error');return;}
+  const name=document.getElementById('set-name').value.trim();
+  if(!name){toast('Branch name required','error');return;}
+  const eid=document.getElementById('set-edit-id').value;
+  const data={name,type:document.getElementById('set-type').value,shop_rent:parseFloat(document.getElementById('set-srent').value||0),room_rent:parseFloat(document.getElementById('set-rrent').value||0),salary_budget:parseFloat(document.getElementById('set-sal').value||0),wifi:parseFloat(document.getElementById('set-wifi').value||0),shop_elec:parseFloat(document.getElementById('set-selec').value||0),room_elec:parseFloat(document.getElementById('set-relec').value||0),location:document.getElementById('set-loc').value};
+  try{
+    if(eid){ await setDoc(doc(db,'branches',eid),data,{merge:true}); toast('Branch updated in Firebase!','success'); }
+    else { await addDoc(collection(db,'branches'),data); toast('Branch added to Firebase!','success'); }
+    clearBranchForm();
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+window.saveBranch = saveBranch;
+
+function clearBranchForm(){
+  document.getElementById('set-name').value='';
+  document.getElementById('set-edit-id').value='';
+  ['set-srent','set-rrent','set-sal','set-wifi','set-selec','set-relec','set-loc'].forEach(id=>{document.getElementById(id).value='';});
+}
+window.clearBranchForm = clearBranchForm;
+
+// ── Change Password ──────────────────────────────────────────────────────────
+function changePassword(){
+  if(!isAdmin){toast('Login as admin first','error');return;}
+  const np = prompt('Enter new admin password (min 6 characters):');
+  if(!np || np.length < 6){toast('Password too short','error');return;}
+  localStorage.setItem('vcut_admin_pass', np);
+  ADMIN_PASS = np;
+  toast('Admin password updated!','success');
+}
+window.changePassword = changePassword;
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
